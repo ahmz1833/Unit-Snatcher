@@ -25,7 +25,14 @@ class UnitSnatcher:
 		# TODO: check 'courses'
 	#----------------------
 	def reg(self, courses):
-		# TODO: reg courses with free threads
+		course_groups = []
+		for i in range(len(courses) // len(self.__edu_sesstions) + (len(courses) % len(self.__edu_sesstions) > 0)):
+			course_groups.append([])
+		for i in range(len(courses)):
+			index = i // len(self.__edu_sesstions)
+			course_groups[index].append(courses[i])
+
+		print(course_groups) # TODO ahmz use this groups and apply your magic
 		return
 	#----------------------
 	# def ??
