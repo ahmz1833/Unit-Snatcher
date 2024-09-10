@@ -16,8 +16,16 @@ class UnitSnatcher:
 		info = self.__edu_sessions[0].get_course_info(course)
 		return info['capacity'] - info['count']
 	#----------------------
-	def has_reserve(self, course):
+	def has_reserve_cap(self, course):
 		info = self.__edu_sessions[0].get_course_info(course)
-		
+		return info['reserve']
+	#----------------------
+	def checkreg(self, course):
+		user_state = self.__edu_sessions[0].get_user_state()
+		# TODO: check 'courses'
+	#----------------------
+	def reg(self, courses):
+		# TODO: reg courses with free threads
+	#----------------------
 	# def ??
 

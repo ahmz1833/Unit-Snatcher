@@ -47,7 +47,7 @@ class EduSession:
 			'accept-language': 'en-US,en;q=0.9,fa;q=0.8',
 			'content-type': 'application/json',
 			'origin': 'https://my.edu.sharif.edu',
-			'user-agent': EduSession.__user_agents[session_number],
+			'user-agent': EduSession.__user_agents[session_number % 10],
 			'sec-fetch-dest': 'empty',
 			'sec-fetch-mode': 'cors',
 			'sec-fetch-site': 'same-origin',
@@ -93,7 +93,7 @@ class EduSession:
 	#-------------------------------------------------------------
 	def get_user_state(self):
 		user_state,_ = self.__read_ws()
-		return 
+		return json.loads(user_state)['message']
 	#-------------------------------------------------------------
 	def reg_course(self, course):
 		self.is_busy = True
