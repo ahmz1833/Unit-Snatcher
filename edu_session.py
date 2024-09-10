@@ -95,14 +95,15 @@ class EduSession:
 		user_state,_ = self.__read_ws()
 		return json.loads(user_state)['message']
 	#-------------------------------------------------------------
-	def reg_course(self, course):
+	def course_action(self, course, action):
 		self.is_busy = True
 		data = {
-			"action" : "add",
+			"action" : action,
 			"course" : course.split('.')[0],
 			"units" : int(course.split('.')[1])
 		}
 		response = self.__request("https://my.edu.sharif.edu/api/reg", data)
+		
 		# TODO: handle response
 		# Statuses : Successfully Reg (Green) / Capacity Full (Red) / Resereved (Yellow) / Duplicate (Reg Manually) / Other Error (Conflict or ...)
 		return
