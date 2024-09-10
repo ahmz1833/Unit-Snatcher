@@ -1,3 +1,4 @@
+import os
 import time
 import argparse
 from ansi import ANSI
@@ -38,6 +39,6 @@ class UnitSnatcher:
 	#----------------------
 	def countdown(self):
 		regTime = self.__edu_sessions[0].get_user_state()['registrationTime']
-		while 
+		print(time.time_ns, regTime)
 	#----------------------
 	# def ??
