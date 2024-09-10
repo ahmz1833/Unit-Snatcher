@@ -15,7 +15,6 @@ import requests_toolbelt
 import xml.etree.ElementTree as ET
 
 class EduSession:
-
 	__user_agents = [
 		# Chrome on Windows
 		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
@@ -39,7 +38,8 @@ class EduSession:
 		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36 Edg/92.0.902.78",
 	]
 	#-------------------------------------------------------------
-	def __init__(self, session_number, username, password, interface=None):
+	def __init__(self, unitsnatcher, session_number, username, password, interface=None):
+		self.__unitsnacther = unitsnatcher
 		self.__username = username
 		self.__password = password
 		self.__header = {
@@ -59,7 +59,9 @@ class EduSession:
 	def check_login(self):
 		# Check if we are already logged in
 		if self.__token:
-			if not self.test().json().get('error'):
+			result = self.test().json()
+			if not result.get('error'):
+				self.__unitsnacther.last_user_state = result
 				return # return, No error and we are logged in
 		
 		challenge, captcha = EduSession.__get_captcha()
@@ -84,7 +86,8 @@ class EduSession:
 			time.sleep(0.5)
 			self.check_login()
 	#-------------------------------------------------------------
-	def get_course_info(self, course):
+	async def get_course_info(self, course):
+		self.check_login()
 		_, list_update = self.__read_ws()
 		for item in json.loads(list_update)['message']:
 			if item['id'] == course.split('.')[0]:
@@ -92,25 +95,39 @@ class EduSession:
 		return None
 	#-------------------------------------------------------------
 	def get_user_state(self):
-		user_state,_ = self.__read_ws()
-		return json.loads(user_state)['message']
+		self.check_login()
+		return self.__unitsnacther.last_user_state
 	#-------------------------------------------------------------
-	def course_action(self, course, action):
+	async def course_action(self, course, action):
 		self.is_busy = True
 		data = {
 			"action" : action,
 			"course" : course.split('.')[0],
 			"units" : int(course.split('.')[1])
 		}
-		response = self.__request("https://my.edu.sharif.edu/api/reg", data)
-		
-		# TODO: handle response
-		# Statuses : Successfully Reg (Green) / Capacity Full (Red) / Resereved (Yellow) / Duplicate (Reg Manually) / Other Error (Conflict or ...)
-		return
+		self.__unitsnacther.last_user_state = self.__request("https://my.edu.sharif.edu/api/reg", data).json()
+		sleep(1.2)
+		result = get_last_job_result(course)
+		if result == "OK":
+			print(f'{ANSI.GREEN.bd()}Successfull action {action}: {course}.{ANSI.RST}')
+		elif result == "COURSE_DUPLICATE":
+			print(f'{ANSI.CYAN.bd()}Already have {course}.{ANSI.RST}')
+		else:
+			print(f'{ANSI.RED}Error in {action} {course}: {ANSI.BOLD}{result}{ANSI.RST}')
+		return (result == "OK")
 	#-------------------------------------------------------------
 	def test(self):
 		return self.__request('https://my.edu.sharif.edu/api/user/favorite', {"course": "40102-1", "marked": False})
-	
+	#-------------------------------------------------------------
+	@staticmethod
+	def get_last_job_result(course_filter=None):
+		if not course_filter:
+			return self.__unitsnacther.last_user_state['jobs'][0]['result']
+		else: 
+			for job in self.__unitsnacther.last_user_state['jobs']:
+				if job['courseId'] == course_filter:
+					return job['result']
+
 ############################### Private Functions ######################################
 
 	@staticmethod
@@ -165,8 +182,8 @@ class EduSession:
 	def __request(self, url, payload):
 		response = self.__session.post(url, headers=self.__header, json=payload)
 		if response.status_code == 429 :
-			print(f'{ANSI.RED.bd()}Too many Requests!!! Waiting for 15 seconds{ANSI.RST}')
-			time.sleep(15)
+			print(f'{ANSI.RED.bd()}Too many Requests!!! Waiting for 2 seconds{ANSI.RST}')
+			time.sleep(2)
 			return self.__request(url, payload)
 		return response
 

@@ -8,8 +8,9 @@ class UnitSnatcher:
 	def __init__(self, username, password, number_of_sessions=1, start=0):
 		self.__number_of_sessions = number_of_sessions
 		self.__edu_sessions = [None] * number_of_sessions
+		self.last_user_state = {}
 		for i in range(0, number_of_sessions):
-			self.__edu_sessions[i] = EduSession(i, username, password, f'eth{i+start}' if number_of_sessions > 1 else None)
+			self.__edu_sessions[i] = EduSession(self, i, username, password, f'eth{i+start}' if number_of_sessions > 1 else None)
 			print(f'{ANSI.CYAN}Session {i} (on eth{i+start}) Successfully Initialized.{ANSI.RST}')
 	#----------------------
 	def get_capacity(self, course):
@@ -21,7 +22,7 @@ class UnitSnatcher:
 		return info['reserve']
 	#----------------------
 	def checkreg(self, course):
-		user_state = self.__edu_sessions[0].get_user_state()
+		print(self.__edu_sessions[0].get_user_state())
 		# TODO: check 'courses'
 	#----------------------
 	def reg(self, courses):
@@ -34,5 +35,9 @@ class UnitSnatcher:
 
 		print(course_groups) # TODO ahmz use this groups and apply your magic
 		return
+	#----------------------
+	def countdown(self):
+		regTime = self.__edu_sessions[0].get_user_state()['registrationTime']
+		while 
 	#----------------------
 	# def ??
