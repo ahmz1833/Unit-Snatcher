@@ -26,6 +26,6 @@ class UnitSnatcher:
 	#----------------------
 	def reg(self, courses):
 		# TODO: reg courses with free threads
+		return
 	#----------------------
 	# def ??
-	
