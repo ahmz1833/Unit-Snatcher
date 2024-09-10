@@ -35,7 +35,7 @@ sudo apt install libcairo tesseract-ocr python3-opencv  -y
 
 ## Personal Script
 
-You must create a new python script named as pattern `personal-*.py` , for work with this library. some examples is found in `sample.py` for reference and example.
+You must create a new python script named as pattern `personal_*.py` , for work with this library. some examples is found in `sample.py` for reference and example.
 
 ## Multiple IP Interfaces
 If you have multiple network interfaces (on the server) and want to use them, you can use `iprule.sh` script to initialize IP rules for each IP of the device and make them usable.
