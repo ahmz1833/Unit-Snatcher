@@ -76,17 +76,15 @@ class EduSession:
 		if login_res.status_code == 200 and not login_res.json().get('error'):
 			self.__token = login_res.json()['token']
 			self.__header['authorization'] = self.__token
-			return # Login Successfully
 		elif login_res.json().get('error'):
 			print(f'{ANSI.RED.bd()}Error in Login: {login_res.json().get("error")}, Trying Again...{ANSI.RST}')
 			time.sleep(0.5)
-			self.check_login()
 		else:
 			print(f'{ANSI.RED.bd()}Error in Login: {login_res.status_code}, Trying Again...{ANSI.RST}')
 			time.sleep(0.5)
-			self.check_login()
+		self.check_login()
 	#-------------------------------------------------------------
-	async def get_course_info(self, course):
+	def get_course_info(self, course):
 		self.check_login()
 		_, list_update = self.__read_ws()
 		for item in json.loads(list_update)['message']:
@@ -98,16 +96,15 @@ class EduSession:
 		self.check_login()
 		return self.__unitsnacther.last_user_state
 	#-------------------------------------------------------------
-	async def course_action(self, course, action):
-		self.is_busy = True
+	def course_action(self, course, action):
 		data = {
 			"action" : action,
 			"course" : course.split('.')[0],
 			"units" : int(course.split('.')[1])
 		}
 		self.__unitsnacther.last_user_state = self.__request("https://my.edu.sharif.edu/api/reg", data).json()
-		sleep(1.2)
-		result = get_last_job_result(course)
+		time.sleep(1.2)
+		result = self.get_last_job_result(course)
 		if result == "OK":
 			print(f'{ANSI.GREEN.bd()}Successfull action {action}: {course}.{ANSI.RST}')
 		elif result == "COURSE_DUPLICATE":
@@ -119,13 +116,12 @@ class EduSession:
 	def test(self):
 		return self.__request('https://my.edu.sharif.edu/api/user/favorite', {"course": "40102-1", "marked": False})
 	#-------------------------------------------------------------
-	@staticmethod
-	def get_last_job_result(course_filter=None):
+	def get_last_job_result(self, course_filter=None):
 		if not course_filter:
 			return self.__unitsnacther.last_user_state['jobs'][0]['result']
 		else: 
 			for job in self.__unitsnacther.last_user_state['jobs']:
-				if job['courseId'] == course_filter:
+				if job['courseId'] == course_filter.split('.')[0]:
 					return job['result']
 
 ############################### Private Functions ######################################
@@ -188,14 +184,10 @@ class EduSession:
 		return response
 
 	def __read_ws(self):
-		global __read_user_state
-		global __read_list_update
 		async def __ws_read():
 			uri = f"wss://my.edu.sharif.edu/api/ws?token={self.__token}"
 			async with websockets.connect(uri=uri) as websocket:
-				global __read_user_state
-				global __read_list_update
-				__read_user_state = await websocket.recv()
-				__read_list_update = await websocket.recv() 
-		asyncio.get_event_loop().run_until_complete(__ws_read())
-		return __read_user_state, __read_list_update
+				user_state = await websocket.recv()
+				list_update = await websocket.recv()
+			return user_state, list_update
+		return asyncio.run(__ws_read())
