@@ -54,14 +54,13 @@ class EduSession:
 		}
 		self.__session = EduSession.__create_session_with_interface(interface)
 		self.__token = None
-		self.check_login()
 	#-------------------------------------------------------------
 	def check_login(self):
 		# Check if we are already logged in
 		if self.__token:
 			result = self.test().json()
 			if not result.get('error'):
-				self.__unitsnacther.last_user_state = result
+				self.__unitsnacther.set_user_state(result)
 				return # return, No error and we are logged in
 		
 		challenge, captcha = EduSession.__get_captcha()
@@ -84,17 +83,12 @@ class EduSession:
 			time.sleep(0.5)
 		self.check_login()
 	#-------------------------------------------------------------
-	def get_course_info(self, course):
-		self.check_login()
+	def get_courses_info(self):
 		_, list_update = self.__read_ws()
+		courses = {}
 		for item in json.loads(list_update)['message']:
-			if item['id'] == course.split('.')[0]:
-				return item
-		return None
-	#-------------------------------------------------------------
-	def get_user_state(self):
-		self.check_login()
-		return self.__unitsnacther.last_user_state
+			courses[str(item['id'])] = item
+		return courses
 	#-------------------------------------------------------------
 	def course_action(self, course, action):
 		data = {
@@ -102,25 +96,29 @@ class EduSession:
 			"course" : course.split('.')[0],
 			"units" : int(course.split('.')[1])
 		}
-		self.__unitsnacther.last_user_state = self.__request("https://my.edu.sharif.edu/api/reg", data).json()
-		time.sleep(1.2)
-		result = self.get_last_job_result(course)
-		if result == "OK":
-			print(f'{ANSI.GREEN.bd()}Successfull action {action}: {course}.{ANSI.RST}')
-		elif result == "COURSE_DUPLICATE":
-			print(f'{ANSI.CYAN.bd()}Already have {course}.{ANSI.RST}')
-		else:
-			print(f'{ANSI.RED}Error in {action} {course}: {ANSI.BOLD}{result}{ANSI.RST}')
-		return (result == "OK")
+		self.__unitsnacther.set_user_state(self.__request("https://my.edu.sharif.edu/api/reg", data).json())
+		time.sleep(1.5)
+		try:
+			result = self.get_last_job_result(course)
+			if result == "OK":
+				print(f'{ANSI.GREEN.bd()}Successfull action {action}: {course}.{ANSI.RST}')
+			elif result == "COURSE_DUPLICATE":
+				print(f'{ANSI.CYAN.bd()}Already have {course}.{ANSI.RST}')
+			else:
+				print(f'{ANSI.RED}Error in {action} {course}: {ANSI.BOLD}{result}{ANSI.RST}')
+			return (result == "OK" or result == "COURSE_DUPLICATE")
+		except:
+			print(f'{ANSI.RED}ERROR! STATE={self.__unitsnacther.get_user_state()}')
+		return False
 	#-------------------------------------------------------------
 	def test(self):
 		return self.__request('https://my.edu.sharif.edu/api/user/favorite', {"course": "40102-1", "marked": False})
 	#-------------------------------------------------------------
 	def get_last_job_result(self, course_filter=None):
 		if not course_filter:
-			return self.__unitsnacther.last_user_state['jobs'][0]['result']
+			return self.__unitsnacther.get_user_state()['jobs'][0]['result']
 		else: 
-			for job in self.__unitsnacther.last_user_state['jobs']:
+			for job in self.__unitsnacther.get_user_state()['jobs']:
 				if job['courseId'] == course_filter.split('.')[0]:
 					return job['result']
 
@@ -175,19 +173,23 @@ class EduSession:
 			session.mount('https://', iface)
 		return session
 
-	def __request(self, url, payload):
+	def __request(self, url, payload, attempt=1):
 		response = self.__session.post(url, headers=self.__header, json=payload)
-		if response.status_code == 429 :
-			print(f'{ANSI.RED.bd()}Too many Requests!!! Waiting for 2 seconds{ANSI.RST}')
-			time.sleep(2)
-			return self.__request(url, payload)
+		if response.status_code == 429:
+			wait_time = min(2 ** attempt, 60)  # Exponential backoff, max 60 seconds
+			print(f'{ANSI.RED.bd()}Too many Requests!!! Waiting for {wait_time} seconds{ANSI.RST}')
+			time.sleep(wait_time)
+			return self.__request(url, payload, attempt + 1)
 		return response
 
+	async def __ws_read(self):
+		uri = f"wss://my.edu.sharif.edu/api/ws?token={self.__token}"
+		async with websockets.connect(uri=uri) as websocket:
+			user_state = await websocket.recv()
+			list_update = await websocket.recv()
+		return user_state, list_update
+
 	def __read_ws(self):
-		async def __ws_read():
-			uri = f"wss://my.edu.sharif.edu/api/ws?token={self.__token}"
-			async with websockets.connect(uri=uri) as websocket:
-				user_state = await websocket.recv()
-				list_update = await websocket.recv()
-			return user_state, list_update
-		return asyncio.run(__ws_read())
+		loop = asyncio.new_event_loop()
+		asyncio.set_event_loop(loop)
+		return loop.run_until_complete(self.__ws_read())
