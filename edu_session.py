@@ -193,3 +193,5 @@ class EduSession:
 		loop = asyncio.new_event_loop()
 		asyncio.set_event_loop(loop)
 		return loop.run_until_complete(self.__ws_read())
+	
+# added by me
